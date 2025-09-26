@@ -7,7 +7,7 @@
 [![Documentation](https://img.shields.io/badge/docs-available-brightgreen.svg)](docs/)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/DhruvParmar10/xPass/actions)
 [![Security](https://img.shields.io/badge/security-KDBX%20AES--256-red.svg)](https://keepass.info/help/base/security.html)
-[![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://flutter.dev/multi-platform)
+[![Platform](https://img.shields.io/badge/platform-Android%20%7C%20macOS-lightgrey.svg)](https://flutter.dev/multi-platform)
 
 A production-ready, cross-platform password manager engineered with Flutter that implements industry-standard encryption protocols using the KDBX format. Architected for enterprise security requirements with comprehensive multi-tenant support, automated data import workflows, and cryptographically secure password generation algorithms.
 
