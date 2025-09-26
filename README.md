@@ -5,7 +5,7 @@
 [![Dart](https://img.shields.io/badge/Dart-3.5.0-0175C2.svg?logo=dart)](https://dart.dev)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-available-brightgreen.svg)](docs/)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/DhruvParmar/xPass/actions)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/DhruvParmar10/xPass/actions)
 [![Security](https://img.shields.io/badge/security-KDBX%20AES--256-red.svg)](https://keepass.info/help/base/security.html)
 [![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://flutter.dev/multi-platform)
 
