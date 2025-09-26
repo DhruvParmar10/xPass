@@ -1,11 +1,11 @@
 # xPass - Enterprise-Grade Password Management Solution
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/yourusername/xpassboi/releases)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/DhruvParmar10/xPass/releases)
 [![Flutter](https://img.shields.io/badge/Flutter-3.24.0-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.5.0-0175C2.svg?logo=dart)](https://dart.dev)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/docs-available-brightgreen.svg)](docs/)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/yourusername/xpassboi/actions)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/DhruvParmar/xPass/actions)
 [![Security](https://img.shields.io/badge/security-KDBX%20AES--256-red.svg)](https://keepass.info/help/base/security.html)
 [![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://flutter.dev/multi-platform)
 
@@ -52,7 +52,6 @@ xpassboi/
 ├── ios/                     # iOS platform integration with Keychain services
 ├── linux/                   # Linux desktop environment with D-Bus integration
 ├── macos/                   # macOS platform with Keychain and sandbox compliance
-├── web/                     # Progressive Web App configuration and service workers
 ├── windows/                 # Windows platform with Credential Manager integration
 ├── lib/
 │   ├── screens/            # Presentation layer with Material Design components
