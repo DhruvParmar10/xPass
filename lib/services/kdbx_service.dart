@@ -212,6 +212,40 @@ class KdbxService {
     }
   }
 
+  /// Verify the master password for a specific account without loading the database
+  Future<bool> verifyMasterPassword(String accountId, String masterPassword) async {
+    try {
+      // Get the account directory
+      final accountDir = await _accountService.getAccountDirectory(accountId);
+      
+      // Look for any .kdbx files in the account directory
+      final kdbxFiles = await accountDir.list()
+          .where((entity) => entity is File && entity.path.endsWith('.kdbx'))
+          .toList();
+      
+      if (kdbxFiles.isEmpty) {
+        print('No database found for account $accountId');
+        return false;
+      }
+      
+      // Try to verify with the first database file found
+      final file = File(kdbxFiles.first.path);
+      final bytes = await file.readAsBytes();
+      final credentials = Credentials(
+        ProtectedValue.fromString(masterPassword),
+      );
+      
+      // This will throw an exception if the password is wrong
+      await _format.read(bytes, credentials);
+      
+      print('Master password verified successfully for account $accountId');
+      return true;
+    } catch (e) {
+      print('Master password verification failed: $e');
+      return false;
+    }
+  }
+
   /// Save the current database
   Future<bool> saveDatabase() async {
     if (_database == null) {
@@ -647,6 +681,95 @@ class KdbxService {
     }
   }
 
+  /// Export passwords to CSV file
+  Future<String?> exportCsvPasswords() async {
+    if (_database == null) {
+      print('Error: No database to export');
+      return null;
+    }
+
+    try {
+      final currentAccount = _accountService.currentAccount;
+      if (currentAccount == null) {
+        print('Error: No account selected');
+        return null;
+      }
+
+      // Get all entries
+      final entries = getAllEntries();
+      if (entries.isEmpty) {
+        print('No entries to export');
+        return null;
+      }
+
+      // Create CSV content
+      List<List<String>> csvData = [];
+      
+      // Add header row
+      csvData.add(['Title', 'Username/Email', 'Password', 'URL', 'Tags', 'Notes']);
+
+      // Add entry rows
+      for (final entry in entries) {
+        final title = entry.getString(KdbxKeyCommon.TITLE)?.getText() ?? '';
+        final username = entry.getString(KdbxKeyCommon.USER_NAME)?.getText() ?? '';
+        final password = entry.getString(KdbxKeyCommon.PASSWORD)?.getText() ?? '';
+        final url = entry.getString(KdbxKeyCommon.URL)?.getText() ?? '';
+        final tags = entry.getString(KdbxKey('Tags'))?.getText() ?? '';
+        final notes = entry.getString(KdbxKey('Notes'))?.getText() ?? '';
+
+        csvData.add([title, username, password, url, tags, notes]);
+      }
+
+      // Convert to CSV string
+      final csvString = const ListToCsvConverter().convert(csvData);
+
+      // Get export directory
+      late Directory exportDir;
+      if (Platform.isAndroid) {
+        bool hasPermission = await _requestStoragePermission();
+        if (hasPermission) {
+          try {
+            exportDir = Directory('/storage/emulated/0/Documents');
+            if (!await exportDir.exists()) {
+              try {
+                await exportDir.create(recursive: true);
+              } catch (e) {
+                exportDir = Directory('/storage/emulated/0/Download');
+                if (!await exportDir.exists()) {
+                  exportDir = await getApplicationDocumentsDirectory();
+                }
+              }
+            }
+          } catch (e) {
+            exportDir = await getApplicationDocumentsDirectory();
+          }
+        } else {
+          exportDir = await getApplicationDocumentsDirectory();
+        }
+      } else {
+        exportDir = await getApplicationDocumentsDirectory();
+      }
+
+      // Create filename with timestamp
+      final timestamp = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')[0];
+      final filename =
+          '${currentAccount.name.replaceAll(' ', '_')}_passwords_$timestamp.csv';
+      final exportPath = '${exportDir.path}/$filename';
+
+      // Write CSV to file
+      await File(exportPath).writeAsString(csvString);
+
+      print('CSV exported successfully to: $exportPath');
+      return exportPath;
+    } catch (e) {
+      print('Error exporting CSV: $e');
+      return null;
+    }
+  }
+
   /// Request storage permission for Android devices
   Future<bool> _requestStoragePermission() async {
     if (!Platform.isAndroid) return true;
@@ -912,6 +1035,7 @@ class KdbxService {
       final headers = originalHeaders.map((header) {
         switch (header) {
           case 'username':
+          case 'username/email':
           case 'user':
           case 'login':
             return 'user_name';
@@ -929,13 +1053,16 @@ class KdbxService {
           case 'category':
           case 'group':
             return 'tags';
+          case 'note':
+          case 'comment':
+            return 'notes';
           default:
             return header;
         }
       }).toList();
 
       // Validate expected columns
-      final expectedColumns = ['user_name', 'title', 'password', 'url', 'tags'];
+      final expectedColumns = ['title', 'user_name', 'password', 'url', 'tags', 'notes'];
       for (String column in expectedColumns) {
         if (!headers.contains(column)) {
           print('Warning: CSV missing expected column: $column');
@@ -989,7 +1116,8 @@ class KdbxService {
   }
 
   /// Import CSV file and merge with current database
-  Future<bool> importCsvDatabase(
+  /// Returns a map with 'imported' and 'skipped' counts, or null on error
+  Future<Map<String, int>?> importCsvDatabase(
     String? filePath,
     Uint8List? fileBytes,
     bool replaceExisting,
@@ -1004,19 +1132,19 @@ class KdbxService {
         final csvFile = File(filePath);
         if (!await csvFile.exists()) {
           print('Error: CSV file does not exist');
-          return false;
+          return null;
         }
         csvContent = await csvFile.readAsString();
       } else {
         print('Error: No file path or bytes provided');
-        return false;
+        return null;
       }
 
       // Parse CSV to entries
       final csvEntries = parseCsvToEntries(csvContent);
       if (csvEntries.isEmpty) {
         print('Error: No valid entries found in CSV file');
-        return false;
+        return null;
       }
 
       // Handle database creation/replacement
@@ -1024,14 +1152,14 @@ class KdbxService {
         final currentAccount = _accountService.currentAccount;
         if (currentAccount == null) {
           print('Error: No account selected');
-          return false;
+          return null;
         }
 
         if (_database == null || replaceExisting) {
           // Create new database for CSV import
           if (masterPassword == null || masterPassword.isEmpty) {
             print('Error: Master password required for database creation');
-            return false;
+            return null;
           }
 
           final success = await createNewDatabase(
@@ -1040,7 +1168,7 @@ class KdbxService {
           );
           if (!success) {
             print('Error: Failed to create new database for CSV import');
-            return false;
+            return null;
           }
           print('Created new database for CSV import');
         }
@@ -1048,14 +1176,39 @@ class KdbxService {
 
       if (_database == null) {
         print('Error: Failed to create or load database');
-        return false;
+        return null;
       }
 
       final currentGroup = _database!.body.rootGroup;
       int importedCount = 0;
+      int skippedCount = 0;
+
+      // Get all existing entries for duplicate checking
+      final existingEntries = getAllEntries();
 
       // Convert CSV entries to KDBX entries
       for (final csvEntry in csvEntries) {
+        final csvUsername = csvEntry['user_name'] ?? '';
+        final csvUrl = csvEntry['url'] ?? '';
+        final csvPassword = csvEntry['password'] ?? '';
+
+        // Check if entry already exists (matching username/email, url, and password)
+        final isDuplicate = existingEntries.any((entry) {
+          final existingUsername = entry.getString(KdbxKeyCommon.USER_NAME)?.getText() ?? '';
+          final existingUrl = entry.getString(KdbxKeyCommon.URL)?.getText() ?? '';
+          final existingPassword = entry.getString(KdbxKeyCommon.PASSWORD)?.getText() ?? '';
+
+          return existingUsername == csvUsername &&
+                 existingUrl == csvUrl &&
+                 existingPassword == csvPassword;
+        });
+
+        if (isDuplicate) {
+          print('Skipping duplicate entry: ${csvEntry['title']}');
+          skippedCount++;
+          continue;
+        }
+
         final newEntry = KdbxEntry.create(_database!, currentGroup);
 
         // Debug: Print what we're importing
@@ -1070,33 +1223,51 @@ class KdbxService {
         );
         newEntry.setString(
           KdbxKeyCommon.USER_NAME,
-          ProtectedValue.fromString(csvEntry['user_name'] ?? ''),
+          ProtectedValue.fromString(csvUsername),
         );
         newEntry.setString(
           KdbxKeyCommon.PASSWORD,
-          ProtectedValue.fromString(csvEntry['password'] ?? ''),
+          ProtectedValue.fromString(csvPassword),
         );
         newEntry.setString(
           KdbxKeyCommon.URL,
-          ProtectedValue.fromString(csvEntry['url'] ?? ''),
+          ProtectedValue.fromString(csvUrl),
         );
 
         // Set tags if provided
         final tags = csvEntry['tags']?.trim();
+        print('DEBUG: Tags from CSV entry: "$tags"');
         if (tags != null && tags.isNotEmpty) {
           newEntry.setString(KdbxKey('Tags'), ProtectedValue.fromString(tags));
+          print('DEBUG: Tags set on entry: "$tags"');
+        } else {
+          print('DEBUG: No tags to set');
+        }
+
+        // Set notes if provided
+        final notes = csvEntry['notes']?.trim();
+        if (notes != null && notes.isNotEmpty) {
+          newEntry.setString(KdbxKey('Notes'), ProtectedValue.fromString(notes));
         }
 
         currentGroup.addEntry(newEntry);
+        
+        // Debug: Verify the entry was added with tags
+        final verifyTags = newEntry.getString(KdbxKey('Tags'))?.getText() ?? '';
+        print('DEBUG: Verified tags on newly added entry: "$verifyTags"');
+        
         importedCount++;
       }
 
       await saveDatabase();
       print('Successfully imported $importedCount CSV entries');
-      return true;
+      if (skippedCount > 0) {
+        print('Skipped $skippedCount duplicate entries');
+      }
+      return {'imported': importedCount, 'skipped': skippedCount};
     } catch (e) {
       print('Error importing CSV database: $e');
-      return false;
+      return null;
     }
   }
 }

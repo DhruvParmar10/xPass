@@ -1,46 +1,43 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide ThemeMode, ThemeData;
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'screens/home_screen.dart';
 
-void main() {
-  runApp(PasswordManagerApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const PasswordManagerApp());
 }
 
-class PasswordManagerApp extends StatelessWidget {
+class PasswordManagerApp extends StatefulWidget {
   const PasswordManagerApp({super.key});
 
   @override
+  State<PasswordManagerApp> createState() => _PasswordManagerAppState();
+}
+
+class _PasswordManagerAppState extends State<PasswordManagerApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  void _toggleTheme() {
+    setState(() {
+      _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Password Vault',
+    return ShadcnApp(
+      title: 'xPass',
+      themeMode: _themeMode,
       theme: ThemeData(
-        primarySwatch: Colors.indigo,
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: Colors.grey[50],
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            minimumSize: Size(double.infinity, 48),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-        cardTheme: CardThemeData(
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          elevation: 4,
-          shadowColor: Colors.grey.shade300,
-          margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        ),
+        colorScheme: ColorSchemes.defaultcolor(ThemeMode.light),
+        radius: 0.5,
       ),
-      home: const HomeScreen(),
+      darkTheme: ThemeData(
+        colorScheme: ColorSchemes.defaultcolor(ThemeMode.dark),
+        radius: 0.5,
+      ),
+      debugShowCheckedModeBanner: false,
+      home: HomeScreen(onThemeToggle: _toggleTheme, currentThemeMode: _themeMode),
     );
   }
 }

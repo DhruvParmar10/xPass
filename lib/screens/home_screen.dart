@@ -1,11 +1,19 @@
-import 'package:flutter/material.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
+import 'package:shadcn_flutter/src/theme/theme_extension.dart';
 import '../services/account_service.dart';
 import '../services/kdbx_service.dart';
 import 'account_management_screen.dart';
 import 'vault_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final VoidCallback onThemeToggle;
+  final ThemeMode currentThemeMode;
+  
+  const HomeScreen({
+    super.key,
+    required this.onThemeToggle,
+    required this.currentThemeMode,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -14,7 +22,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final AccountService _accountService = AccountService();
   final KdbxService _kdbxService = KdbxService();
-  bool isLoading = false;
 
   @override
   void initState() {
@@ -23,11 +30,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initializeApp() async {
-    // Always start fresh - close any existing database and sign out
     _kdbxService.closeDatabase();
     await _accountService.signOut();
-
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   Future<void> _navigateToAccountManagement() async {
@@ -37,195 +42,108 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (result == true) {
-      // Account was selected, navigate to vault
       _navigateToVault();
     }
   }
 
   Future<void> _navigateToVault() async {
-    // First check if an account is selected
     if (!_kdbxService.isAccountSelected) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an account first')),
-      );
       return;
     }
 
-    // Navigate to vault screen
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const VaultScreen()),
     );
 
-    // When returning from vault, always sign out for security
     _kdbxService.closeDatabase();
     await _accountService.signOut();
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.theme;
+    final isDark = widget.currentThemeMode == ThemeMode.dark;
+
     return Scaffold(
-      backgroundColor: Colors.indigo.shade50,
-      body: SafeArea(
+      child: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 32.0,
+              vertical: 48.0,
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 60),
-
-                // App Logo/Icon
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.indigo,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.indigo.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.security,
-                    size: 60,
-                    color: Colors.white,
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-
-                // App Title
-                const Text(
-                  'xPass',
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.indigo,
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // App Subtitle
-                Text(
-                  'Secure Password Manager',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-
-                const SizedBox(height: 60),
-
-                // Features Section
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'What We Provide',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Feature Items
-                      _buildFeatureItem(
-                        Icons.account_circle,
-                        'Multi-Account Support',
-                        'Create separate accounts for work, personal, or family use',
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      _buildFeatureItem(
-                        Icons.security,
-                        'Military-Grade Encryption',
-                        'Your passwords are secured with KDBX encryption format',
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      _buildFeatureItem(
-                        Icons.password,
-                        'Password Generation',
-                        'Generate strong, unique passwords for all your accounts',
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      _buildFeatureItem(
-                        Icons.folder_outlined,
-                        'Organized Storage',
-                        'Keep your passwords organized and easily accessible',
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 60),
-
-                // Action Buttons
-                Column(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    // Account Management Button
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton.icon(
-                        onPressed: _navigateToAccountManagement,
-                        icon: const Icon(Icons.arrow_forward, size: 24),
-                        label: const Text(
-                          'Get Started',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.indigo,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 4,
-                        ),
-                      ),
+                    IconButton(
+                      icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+                      onPressed: widget.onThemeToggle,
+                      variance: ButtonVariance.ghost,
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 32),
-
-                // Footer
+                const SizedBox(height: 20),
+                Container(
+                  width: 1,
+                  height: 80,
+                  color: theme.colorScheme.foreground,
+                ),
+                const SizedBox(height: 40),
                 Text(
-                  'Your security is our priority',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[500],
-                    fontStyle: FontStyle.italic,
+                  'xPass',
+                  style: theme.typography.h1.copyWith(
+                    fontWeight: FontWeight.w100,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Secure Password Manager',
+                  style: theme.typography.base.copyWith(
+                    fontWeight: FontWeight.w200,
+                    letterSpacing: 1,
+                    color: theme.colorScheme.mutedForeground,
+                  ),
+                ),
+                const SizedBox(height: 120),
+                _buildFeatureItem('Multi-Account Support'),
+                const SizedBox(height: 24),
+                _buildFeatureItem('Military-Grade Encryption'),
+                const SizedBox(height: 24),
+                _buildFeatureItem('Password Generation'),
+                const SizedBox(height: 24),
+                _buildFeatureItem('Organized Storage'),
+                const SizedBox(height: 120),
+                SizedBox(
+                  width: double.infinity,
+                  child: PrimaryButton(
+                    onPressed: _navigateToAccountManagement,
+                    size: ButtonSize.large,
+                    child: const Text('GET STARTED'),
+                  ),
+                ),
+                const SizedBox(height: 48),
+                Center(
+                  child: Container(
+                    height: 1,
+                    width: 60,
+                    color: theme.colorScheme.mutedForeground,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: Text(
+                    'Your security is our priority',
+                    style: theme.typography.small.copyWith(
+                      fontWeight: FontWeight.w200,
+                      letterSpacing: 0.5,
+                      color: theme.colorScheme.mutedForeground,
+                    ),
                   ),
                 ),
               ],
@@ -236,46 +154,25 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFeatureItem(IconData icon, String title, String description) {
+  Widget _buildFeatureItem(String title) {
+    final theme = context.theme;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 6,
+          height: 6,
           decoration: BoxDecoration(
-            color: Colors.indigo.shade50,
-            borderRadius: BorderRadius.circular(10),
+            color: theme.colorScheme.foreground,
+            shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: Colors.indigo, size: 24),
         ),
-
-        const SizedBox(width: 16),
-
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-
-              const SizedBox(height: 4),
-
-              Text(
-                description,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  height: 1.3,
-                ),
-              ),
-            ],
+        const SizedBox(width: 20),
+        Text(
+          title,
+          style: theme.typography.p.copyWith(
+            fontWeight: FontWeight.w200,
+            letterSpacing: 0.5,
           ),
         ),
       ],

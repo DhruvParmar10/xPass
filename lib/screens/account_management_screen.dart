@@ -1,9 +1,23 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'
+    hide
+        TextField,
+        AlertDialog,
+        showDialog,
+        Scaffold,
+        AppBar,
+        Card,
+        Badge,
+        FormField,
+        CircularProgressIndicator,
+        IconButton,
+        Theme;
+import 'package:flutter/material.dart' as material show Colors;
+import 'package:shadcn_flutter/shadcn_flutter.dart';
 import '../services/account_service.dart';
+import '../services/kdbx_service.dart';
 
 class AccountManagementScreen extends StatefulWidget {
   const AccountManagementScreen({super.key});
-
   @override
   State<AccountManagementScreen> createState() =>
       _AccountManagementScreenState();
@@ -11,6 +25,7 @@ class AccountManagementScreen extends StatefulWidget {
 
 class _AccountManagementScreenState extends State<AccountManagementScreen> {
   final AccountService _accountService = AccountService();
+  final KdbxService _kdbxService = KdbxService();
   List<Account> accounts = [];
   bool isLoading = false;
 
@@ -30,817 +45,668 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
   }
 
   Future<void> _createAccount() async {
-    final result = await showDialog<Map<String, String>>(
-      context: context,
-      builder: (context) {
-        final nameController = TextEditingController();
-        final emailController = TextEditingController();
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool obscurePassword = true;
+    bool obscureConfirmPassword = true;
+    String errorMessage = '';
 
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Column(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.indigo.shade400, Colors.indigo.shade600],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final screenWidth = MediaQuery.of(dialogContext).size.width;
+        final dialogWidth = screenWidth > 450 ? 400.0 : screenWidth * 0.85;
+        
+        return StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Create New Account'),
+            content: SizedBox(
+              width: dialogWidth,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.person_add, size: 40),
+                    const SizedBox(height: 16),
+                FormField<String>(
+                  key: FormKey<String>('name_field'),
+                  label: const Text('Full Name'),
+                  child: TextField(
+                    controller: nameController,
+                    initialValue: '',
+                    onChanged: (v) {
+                      nameController.text = v;
+                      setDialogState(() => errorMessage = '');
+                    },
                   ),
-                  borderRadius: BorderRadius.circular(30),
                 ),
-                child: const Icon(
-                  Icons.person_add,
-                  color: Colors.white,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Create New Account',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Add a new secure account for your password vault',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: 'Full Name',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 16),
+                FormField<String>(
+                  key: FormKey<String>('email_field'),
+                  label: const Text('Email Address'),
+                  child: TextField(
+                    controller: emailController,
+                    initialValue: '',
+                    onChanged: (v) {
+                      emailController.text = v;
+                      setDialogState(() => errorMessage = '');
+                    },
+                    keyboardType: TextInputType.emailAddress,
                   ),
-                  prefixIcon: Icon(Icons.person, color: Colors.indigo),
-                  filled: true,
-                  fillColor: Colors.grey[50],
                 ),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: emailController,
-                decoration: InputDecoration(
-                  labelText: 'Email Address',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 16),
+                FormField<String>(
+                  key: FormKey<String>('password_field'),
+                  label: const Text('Master Password'),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: passwordController,
+                          initialValue: '',
+                          onChanged: (v) {
+                            passwordController.text = v;
+                            setDialogState(() => errorMessage = '');
+                          },
+                          obscureText: obscurePassword,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(
+                          obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          size: 18,
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            obscurePassword = !obscurePassword;
+                          });
+                        },
+                        variance: ButtonVariance.ghost,
+                        density: ButtonDensity.compact,
+                      ),
+                    ],
                   ),
-                  prefixIcon: Icon(Icons.email, color: Colors.indigo),
-                  filled: true,
-                  fillColor: Colors.grey[50],
                 ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-            ],
+                const SizedBox(height: 16),
+                FormField<String>(
+                  key: FormKey<String>('confirm_password_field'),
+                  label: const Text('Confirm Master Password'),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: confirmPasswordController,
+                          initialValue: '',
+                          onChanged: (v) {
+                            confirmPasswordController.text = v;
+                            setDialogState(() => errorMessage = '');
+                          },
+                          obscureText: obscureConfirmPassword,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(
+                          obscureConfirmPassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          size: 18,
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            obscureConfirmPassword = !obscureConfirmPassword;
+                          });
+                        },
+                        variance: ButtonVariance.ghost,
+                        density: ButtonDensity.compact,
+                      ),
+                    ],
+                  ),
+                ),
+                if (errorMessage.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    errorMessage,
+                    style: const TextStyle(
+                      color: material.Colors.red,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
+        ),
+        actions: [
+          Flexible(
+            child: SecondaryButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
               child: const Text('Cancel'),
             ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.indigo.shade400, Colors.indigo.shade600],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ElevatedButton(
-                onPressed: () async {
-                  final name = nameController.text.trim();
-                  final email = emailController.text.trim();
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: PrimaryButton(
+              onPressed: () async {
+              final name = nameController.text.trim();
+              final email = emailController.text.trim();
+              final password = passwordController.text;
+              final confirmPassword = confirmPasswordController.text;
 
-                  if (name.isEmpty || email.isEmpty) {
-                    // Show error
-                    return;
-                  }
+              if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+                setDialogState(() => errorMessage = 'All fields are required');
+                return;
+              }
 
-                  try {
-                    await _accountService.createAccount(
-                      name: name,
-                      email: email,
-                    );
-                    Navigator.of(context).pop();
-                    _loadAccounts();
-                  } catch (e) {
-                    // Show error
+              if (password != confirmPassword) {
+                setDialogState(() => errorMessage = 'Passwords do not match');
+                return;
+              }
+
+              if (password.length < 8) {
+                setDialogState(() => errorMessage = 'Password must be at least 8 characters');
+                return;
+              }
+
+              try {
+                final account = await _accountService.createAccount(name: name, email: email);
+                if (account == null) {
+                  setDialogState(() => errorMessage = 'Account with this email already exists');
+                  return;
+                }
+
+                // Select the newly created account
+                await _accountService.selectAccount(account.id);
+
+                // Create the KDBX database with the master password
+                final dbCreated = await _kdbxService.createDefaultDatabase(password);
+                
+                if (!dbCreated) {
+                  setDialogState(() => errorMessage = 'Failed to create password vault');
+                  return;
+                }
+
+                if (dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop();
+                  if (context.mounted) {
+                    Navigator.of(context).pop(true); // Return true to navigate to vault
                   }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  'Create Account',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        );
+                }
+              } catch (e) {
+                setDialogState(() => errorMessage = 'Error creating account: $e');
+              }
+            },
+            child: const Text('Create', overflow: TextOverflow.ellipsis),
+          ),
+          ),
+        ],
+      ),
+      );
       },
     );
-
-    if (result != null) {
-      setState(() => isLoading = true);
-
-      final account = await _accountService.createAccount(
-        name: result['name']!,
-        email: result['email']!,
-      );
-
-      setState(() => isLoading = false);
-
-      if (account != null) {
-        await _loadAccounts();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Account created: ${account.name}')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to create account. Email may already exist.'),
-          ),
-        );
-      }
-    }
   }
 
   Future<void> _selectAccount(Account account) async {
-    setState(() => isLoading = true);
+    final passwordController = TextEditingController();
+    String errorMessage = '';
+    bool isVerifying = false;
+    bool obscurePassword = true;
+    final theme = Theme.of(context);
 
-    final success = await _accountService.selectAccount(account.id);
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Enter Master Password'),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.lock, size: 48),
+                const SizedBox(height: 24),
+                Text(
+                  'Switching to: ${account.name}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  account.email,
+                  style: TextStyle(
+                    color: theme.colorScheme.mutedForeground,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                FormField<String>(
+                  key: FormKey<String>('master_password_field'),
+                  label: const Text('Master Password'),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: passwordController,
+                          initialValue: '',
+                          onChanged: (v) {
+                            if (errorMessage.isNotEmpty) {
+                              setDialogState(() => errorMessage = '');
+                            }
+                          },
+                          obscureText: obscurePassword,
+                          enabled: !isVerifying,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: Icon(
+                          obscurePassword ? Icons.visibility : Icons.visibility_off,
+                          size: 18,
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            obscurePassword = !obscurePassword;
+                          });
+                        },
+                        variance: ButtonVariance.ghost,
+                        density: ButtonDensity.compact,
+                      ),
+                    ],
+                  ),
+                ),
+                if (errorMessage.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: material.Colors.red,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            errorMessage,
+                            style: const TextStyle(
+                              color: material.Colors.red,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (isVerifying)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 16),
+                    child: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            SecondaryButton(
+              onPressed: isVerifying
+                  ? null
+                  : () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            PrimaryButton(
+              onPressed: isVerifying
+                  ? null
+                  : () async {
+                      final password = passwordController.text.trim();
 
-    setState(() => isLoading = false);
+                      if (password.isEmpty) {
+                        setDialogState(() {
+                          errorMessage = 'Please enter a password';
+                        });
+                        return;
+                      }
 
-    if (success) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Switched to ${account.name}')));
+                      setDialogState(() {
+                        isVerifying = true;
+                        errorMessage = '';
+                      });
 
-      // Navigate back to main screen
-      Navigator.pop(context, true);
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to switch account')));
-    }
+                      // Verify master password
+                      final isValid = await _kdbxService.verifyMasterPassword(
+                        account.id,
+                        password,
+                      );
+
+                      if (isValid) {
+                        // Password is correct, select the account
+                        final success = await _accountService.selectAccount(account.id);
+                        
+                        if (success) {
+                          // Load the database with the verified password
+                          final dbLoaded = await _kdbxService.loadDefaultDatabase(password);
+                          
+                          if (dbLoaded && dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                            if (mounted) {
+                              Navigator.pop(context, true);
+                            }
+                          } else {
+                            setDialogState(() {
+                              isVerifying = false;
+                              errorMessage = 'Failed to load vault';
+                            });
+                          }
+                        } else {
+                          setDialogState(() {
+                            isVerifying = false;
+                            errorMessage = 'Failed to switch account';
+                          });
+                        }
+                      } else {
+                        setDialogState(() {
+                          isVerifying = false;
+                          errorMessage = 'Wrong password. Try again.';
+                        });
+                      }
+                    },
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _deleteAccount(Account account) async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Delete Account'),
         content: Text(
           'Are you sure you want to delete "${account.name}"?\n\n'
           'This will permanently delete all databases and data associated with this account.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
+          SecondaryButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+          DestructiveButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Delete'),
           ),
         ],
       ),
     );
 
-    if (confirm == true) {
-      // Show master password verification dialog
-      final masterPassword = await _showMasterPasswordDialog(account);
-
-      if (masterPassword == null) {
-        // User cancelled password dialog
-        return;
-      }
-
+    if (confirm == true && mounted) {
       setState(() => isLoading = true);
-
       final success = await _accountService.deleteAccount(account.id);
-
       setState(() => isLoading = false);
 
       if (success) {
-        await _loadAccounts();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Account "${account.name}" deleted')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to delete account')),
-        );
+        _loadAccounts();
       }
     }
-  }
-
-  Future<String?> _showMasterPasswordDialog(Account account) async {
-    final passwordController = TextEditingController();
-    bool obscureText = true;
-    String? errorMessage;
-
-    return await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Column(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.red.shade400, Colors.red.shade600],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: const Icon(
-                  Icons.security,
-                  color: Colors.white,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Security Verification',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Enter master password to delete "${account.name}"',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber, color: Colors.red.shade600),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'This action cannot be undone. All data will be permanently lost.',
-                        style: TextStyle(
-                          color: Colors.red.shade700,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: passwordController,
-                obscureText: obscureText,
-                decoration: InputDecoration(
-                  labelText: 'Master Password',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: Icon(Icons.lock, color: Colors.red.shade600),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      obscureText ? Icons.visibility : Icons.visibility_off,
-                      color: Colors.grey[600],
-                    ),
-                    onPressed: () {
-                      setDialogState(() {
-                        obscureText = !obscureText;
-                      });
-                    },
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  errorText: errorMessage,
-                ),
-                onSubmitted: (value) async {
-                  if (value.isNotEmpty) {
-                    // You can add password verification logic here if needed
-                    // For now, we'll assume any non-empty password is valid
-                    Navigator.of(context).pop(value);
-                  }
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(foregroundColor: Colors.grey[600]),
-              child: const Text('Cancel'),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.red.shade400, Colors.red.shade600],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ElevatedButton(
-                onPressed: () async {
-                  final password = passwordController.text.trim();
-                  if (password.isEmpty) {
-                    setDialogState(() {
-                      errorMessage = 'Master password is required';
-                    });
-                    return;
-                  }
-
-                  // You can add additional password verification logic here
-                  // For now, we'll accept any non-empty password
-                  Navigator.of(context).pop(password);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text(
-                  'Confirm Delete',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text(
-          'Account Management',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
+      headers: [
+        AppBar(
+          leading: [
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Navigator.pop(context),
+              variance: ButtonVariance.ghost,
+            ),
+          ],
+          title: const Text('Account Management'),
         ),
-        backgroundColor: Colors.indigo,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : accounts.isEmpty
-          ? Center(
-              child: Container(
-                padding: const EdgeInsets.all(32),
+      ],
+      child: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : _buildAccountList(),
+    );
+  }
+
+  Widget _buildAccountList() {
+    final theme = Theme.of(context);
+    
+    if (accounts.isEmpty) {
+      return Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.people_outline, size: 64),
+                const SizedBox(height: 24),
+                const Text(
+                  'No accounts yet',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Create your first account to get started',
+                  style: TextStyle(color: theme.colorScheme.mutedForeground),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                PrimaryButton(
+                  onPressed: _createAccount,
+                  size: ButtonSize.large,
+                  child: const Text('Create Account'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: Colors.indigo.shade50,
-                        borderRadius: BorderRadius.circular(60),
-                        border: Border.all(
-                          color: Colors.indigo.shade100,
-                          width: 2,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.account_circle_outlined,
-                        size: 64,
-                        color: Colors.indigo.shade300,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'No Accounts Yet',
+                    const Text(
+                      'Select Account',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.grey[800],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 4),
                     Text(
-                      'Create your first account to start managing\nyour secure password vaults',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[600],
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    Container(
-                      width: double.infinity,
-                      height: 56,
-                      margin: const EdgeInsets.symmetric(horizontal: 24),
-                      child: ElevatedButton.icon(
-                        onPressed: _createAccount,
-                        icon: const Icon(Icons.add_circle_outline, size: 24),
-                        label: const Text(
-                          'Create First Account',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.indigo,
-                          foregroundColor: Colors.white,
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
+                      'Accounts',
+                      style: TextStyle(color: theme.colorScheme.mutedForeground),
                     ),
                   ],
                 ),
               ),
-            )
-          : Column(
-              children: [
-                // Header section
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              PrimaryButton(
+                onPressed: _createAccount,
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add, size: 18),
+                    SizedBox(width: 8),
+                    Text('New Account'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_accountService.currentAccount != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Card(
+              child: InkWell(
+                onTap: null,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
                     children: [
-                      Text(
-                        'Your Accounts',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey[800],
+                      const CircleAvatar(radius: 24, child: Icon(Icons.person)),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Current Account',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _accountService.currentAccount!.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              _accountService.currentAccount!.email,
+                              style: TextStyle(
+                                color: theme.colorScheme.mutedForeground,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Manage your secure password vault accounts',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                      ),
+                      const SecondaryBadge(child: Icon(Icons.check, size: 16)),
                     ],
                   ),
                 ),
+              ),
+            ),
+          ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: accounts.length,
+            itemBuilder: (context, index) {
+              final account = accounts[index];
+              final isCurrentAccount =
+                  _accountService.currentAccount?.id == account.id;
 
-                // Current account indicator
-                if (_accountService.currentAccount != null)
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.indigo.shade400,
-                          Colors.indigo.shade600,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.indigo.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: const Icon(
-                            Icons.account_circle,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'ACTIVE ACCOUNT',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white.withOpacity(0.8),
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _accountService.currentAccount!.name,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                _accountService.currentAccount!.email,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white.withOpacity(0.9),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Icon(
-                            Icons.check,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Accounts list
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: accounts.length,
-                    itemBuilder: (context, index) {
-                      final account = accounts[index];
-                      final isCurrentAccount =
-                          _accountService.currentAccount?.id == account.id;
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: Card(
-                          elevation: isCurrentAccount ? 4 : 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: isCurrentAccount
-                                ? BorderSide(
-                                    color: Colors.indigo.shade200,
-                                    width: 2,
-                                  )
-                                : BorderSide.none,
-                          ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              color: isCurrentAccount
-                                  ? Colors.indigo.shade50
-                                  : Colors.white,
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Card(
+                  child: InkWell(
+                    onTap: isCurrentAccount
+                        ? null
+                        : () => _selectAccount(account),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 28,
+                            child: Text(
+                              account.name.substring(0, 1).toUpperCase(),
+                              style: const TextStyle(fontSize: 20),
                             ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.all(16),
-                              leading: Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: isCurrentAccount
-                                        ? [
-                                            Colors.indigo.shade400,
-                                            Colors.indigo.shade600,
-                                          ]
-                                        : [
-                                            Colors.grey.shade300,
-                                            Colors.grey.shade400,
-                                          ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(28),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color:
-                                          (isCurrentAccount
-                                                  ? Colors.indigo
-                                                  : Colors.grey)
-                                              .withOpacity(0.3),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    account.name.substring(0, 1).toUpperCase(),
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 20,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      account.name,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 17,
-                                        color: isCurrentAccount
-                                            ? Colors.indigo.shade700
-                                            : Colors.grey[800],
-                                      ),
-                                    ),
-                                  ),
-                                  if (isCurrentAccount)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: const Text(
-                                        'ACTIVE',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        account.name,
+                                        style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ),
-                                ],
-                              ),
-                              subtitle: Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                    if (isCurrentAccount)
+                                      const SecondaryBadge(
+                                        child: Text('ACTIVE'),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
                                   children: [
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.email_outlined,
-                                          size: 16,
-                                          color: Colors.grey[600],
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Expanded(
-                                          child: Text(
-                                            account.email,
-                                            style: TextStyle(
-                                              color: Colors.grey[700],
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.calendar_today_outlined,
-                                          size: 16,
-                                          color: Colors.grey[600],
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'Created ${_formatDate(account.createdAt)}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      ],
+                                    const Icon(Icons.email, size: 14),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        account.email,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ),
-                              trailing: PopupMenuButton<String>(
-                                icon: Icon(
-                                  Icons.more_vert,
-                                  color: Colors.grey[600],
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                onSelected: (value) {
-                                  switch (value) {
-                                    case 'select':
-                                      _selectAccount(account);
-                                      break;
-                                    case 'delete':
-                                      _deleteAccount(account);
-                                      break;
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  if (!isCurrentAccount)
-                                    const PopupMenuItem(
-                                      value: 'select',
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.account_circle, size: 20),
-                                          SizedBox(width: 12),
-                                          Text('Select Account'),
-                                        ],
-                                      ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today, size: 14),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Created ${_formatDate(account.createdAt)}',
+                                      style: const TextStyle(fontSize: 12),
                                     ),
-                                  const PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.delete_outline,
-                                          size: 20,
-                                          color: Colors.red,
-                                        ),
-                                        SizedBox(width: 12),
-                                        Text(
-                                          'Delete Account',
-                                          style: TextStyle(color: Colors.red),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              onTap: isCurrentAccount
-                                  ? null
-                                  : () => _selectAccount(account),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                      );
-                    },
+                          PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert),
+                            onSelected: (value) {
+                              switch (value) {
+                                case 'select':
+                                  _selectAccount(account);
+                                  break;
+                                case 'delete':
+                                  _deleteAccount(account);
+                                  break;
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              if (!isCurrentAccount)
+                                const PopupMenuItem(
+                                  value: 'select',
+                                  child: Text('Select Account'),
+                                ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Delete Account'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            ),
-      floatingActionButton: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        child: FloatingActionButton.extended(
-          onPressed: _createAccount,
-          backgroundColor: Colors.indigo,
-          foregroundColor: Colors.white,
-          elevation: 4,
-          icon: const Icon(Icons.add_circle_outline),
-          label: const Text(
-            'New Account',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              );
+            },
           ),
         ),
-      ),
+      ],
     );
   }
 
