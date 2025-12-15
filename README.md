@@ -11,6 +11,14 @@
 
 A cross-platform password manager engineered with Flutter that implements industry-standard encryption protocols using the KDBX format. Architected for enterprise security requirements with comprehensive multi-tenant support, automated data import workflows, cryptographically secure password generation algorithms, and intelligent peer-to-peer synchronization across trusted networks.
 
+## Screenshots
+
+<div align="center">
+  <img src="images/screenshots/home.jpg" alt="Home Screen" width="45%" />
+  <img src="images/screenshots/passwords.jpg" alt="Password Vault" width="45%" />
+  <p><em>Intuitive home interface and secure password vault with organized entry management</em></p>
+</div>
+
 ## Advanced Technical Implementation
 
 The application demonstrates sophisticated Flutter development patterns and security engineering:
@@ -113,6 +121,14 @@ xpassboi/
 
 The application follows clean architecture principles with strict separation of concerns between the presentation layer ([`lib/screens/`](lib/screens/)), domain models ([`lib/models/`](lib/models/)), and business logic ([`lib/services/`](lib/services/)). All cryptographic operations are isolated within the service layer, ensuring security boundaries and facilitating security audits. The sync subsystem operates as a self-contained module with clear interfaces for network monitoring, device discovery, and vault synchronization.
 
+## Sync Features in Action
+
+<div align="center">
+  <img src="images/screenshots/sync1.jpg" alt="Device Pairing" width="45%" />
+  <img src="images/screenshots/sync2.jpg" alt="Sync Management" width="45%" />
+  <p><em>Seamless QR code-based device pairing and intelligent sync management across trusted networks</em></p>
+</div>
+
 ## Contributing
 
 We welcome contributions from the community! xPass is an open-source project and we appreciate your help in making it better.
@@ -139,14 +155,14 @@ We welcome contributions from the community! xPass is an open-source project and
 
 ### Areas for Contribution
 
-- 🐛 **Bug Fixes** - Report and fix issues in existing functionality
-- ✨ **New Features** - Propose and implement new features (please open an issue first for discussion)
-- 📝 **Documentation** - Improve documentation, add examples, or write tutorials
-- 🎨 **UI/UX Improvements** - Enhance the user interface and user experience
-- 🔒 **Security Enhancements** - Strengthen security measures and encryption protocols
-- 🧪 **Testing** - Expand test coverage and improve test quality
-- 🌍 **Localization** - Add support for additional languages
-- ⚡ **Performance** - Optimize performance and reduce resource usage
+- **Bug Fixes** - Report and fix issues in existing functionality
+- **New Features** - Propose and implement new features (please open an issue first for discussion)
+- **Documentation** - Improve documentation, add examples, or write tutorials
+- **UI/UX Improvements** - Enhance the user interface and user experience
+- **Security Enhancements** - Strengthen security measures and encryption protocols
+- **Testing** - Expand test coverage and improve test quality
+- **Localization** - Add support for additional languages
+- **Performance** - Optimize performance and reduce resource usage
 
 ### Code of Conduct
 
