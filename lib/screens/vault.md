@@ -1,4 +1,4 @@
-SCRATCH
+SCRATCH (Not Doing)
 
 - KDBX file import
 - CSV import with auto-detection

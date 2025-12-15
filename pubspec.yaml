@@ -43,6 +43,15 @@ dependencies:
   cupertino_icons: ^1.0.8
   shadcn_flutter: ^0.0.46
 
+  # Sync feature dependencies
+  qr_flutter: ^4.1.0 # Generate QR codes for pairing
+  mobile_scanner: ^5.1.1 # Scan QR codes for pairing
+  network_info_plus: ^5.0.3 # Get WiFi SSID for trusted networks
+  nsd: ^4.0.3 # mDNS/Bonjour service discovery
+  device_info_plus: ^10.1.0 # Get device name/model
+  uuid: ^4.2.2 # Generate unique device IDs
+  flutter_secure_storage: ^9.2.2 # Secure storage for master password (enables background sync)
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

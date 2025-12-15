@@ -49,14 +49,14 @@ class _VaultScreenState extends State<VaultScreen> {
 
   Future<void> _initializeVault() async {
     if (!_kdbxService.isAccountSelected) {
-      Navigator.pop(context);
+      if (mounted) Navigator.pop(context);
       return;
     }
     await _initializeAccountDatabase();
   }
 
   Future<void> _initializeAccountDatabase() async {
-    setState(() => isLoading = true);
+    if (mounted) setState(() => isLoading = true);
 
     try {
       if (_kdbxService.isDatabaseLoaded) {
@@ -67,7 +67,7 @@ class _VaultScreenState extends State<VaultScreen> {
     } catch (e) {
       if (mounted) Navigator.pop(context);
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -515,10 +515,10 @@ class _VaultScreenState extends State<VaultScreen> {
 
   Future<void> _exportCsv() async {
     setState(() => isLoading = true);
-    
+
     try {
       final exportPath = await _kdbxService.exportCsvPasswords();
-      
+
       if (exportPath != null && mounted) {
         showDialog(
           context: context,
@@ -569,6 +569,164 @@ class _VaultScreenState extends State<VaultScreen> {
     }
   }
 
+  Future<void> _showCsvImportDialog() async {
+    if (!mounted) return;
+
+    final shouldProceed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('CSV Import Requirements'),
+        content: SizedBox(
+          width: 500,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Your CSV file must contain the following columns:',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              _buildColumnInfo(
+                'Title',
+                'Name of the website or service',
+                required: true,
+              ),
+              _buildColumnInfo(
+                'Username/Email',
+                'Login username or email address',
+                required: true,
+              ),
+              _buildColumnInfo('Password', 'Account password', required: true),
+              _buildColumnInfo('URL', 'Website URL', required: false),
+              _buildColumnInfo('Tags', 'Comma-separated tags', required: false),
+              _buildColumnInfo('Notes', 'Additional notes', required: false),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.muted,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Accepted column variations:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.mutedForeground,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildVariation('Title', 'site, service, website_name'),
+                    _buildVariation('Username', 'user, login, email'),
+                    _buildVariation('Password', 'pass, pwd'),
+                    _buildVariation('URL', 'website, site_url'),
+                    _buildVariation('Tags', 'tag, category, group'),
+                    _buildVariation('Notes', 'note, comment'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          OutlineButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          PrimaryButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Proceed with Import'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldProceed == true) {
+      await _importCsv();
+    }
+  }
+
+  Widget _buildColumnInfo(
+    String name,
+    String description, {
+    required bool required,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 140,
+            child: Row(
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+                if (required)
+                  Text(
+                    ' *',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.destructive,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Text(
+              description,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.mutedForeground,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVariation(String column, String variations) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              column,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).colorScheme.mutedForeground,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              variations,
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.mutedForeground,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _importCsv() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -580,8 +738,8 @@ class _VaultScreenState extends State<VaultScreen> {
       if (result == null || result.files.isEmpty) return;
 
       final file = result.files.first;
-      
-      setState(() => isLoading = true);
+
+      if (mounted) setState(() => isLoading = true);
 
       final importResult = await _kdbxService.importCsvDatabase(
         file.path,
@@ -590,13 +748,13 @@ class _VaultScreenState extends State<VaultScreen> {
         null, // No master password needed, database already loaded
       );
 
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
 
       if (importResult != null) {
         _loadEntries();
         final imported = importResult['imported'] ?? 0;
         final skipped = importResult['skipped'] ?? 0;
-        
+
         if (mounted) {
           showDialog(
             context: context,
@@ -621,7 +779,9 @@ class _VaultScreenState extends State<VaultScreen> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Import Failed'),
-            content: const Text('Failed to import passwords from CSV. Please check the file format.'),
+            content: const Text(
+              'Failed to import passwords from CSV. Please check the file format.',
+            ),
             actions: [
               PrimaryButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -680,7 +840,7 @@ class _VaultScreenState extends State<VaultScreen> {
               onSelected: (value) {
                 switch (value) {
                   case 'import':
-                    _importCsv();
+                    _showCsvImportDialog();
                     break;
                   case 'export':
                     _exportCsv();

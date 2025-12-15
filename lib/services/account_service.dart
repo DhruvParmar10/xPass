@@ -63,6 +63,7 @@ class AccountService {
   Account? _currentAccount;
   static const String _accountsKey = 'user_accounts';
   static const String _currentAccountKey = 'current_account_id';
+  static const String _lastSyncAccountKey = 'last_sync_account_id';
 
   /// Get the current active account
   Account? get currentAccount => _currentAccount;
@@ -187,9 +188,10 @@ class AccountService {
 
       await _saveAccounts(updatedAccounts);
 
-      // Save current account ID
+      // Save current account ID and last sync account ID
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_currentAccountKey, accountId);
+      await prefs.setString(_lastSyncAccountKey, accountId);
 
       _currentAccount = updatedAccount;
       print('Selected account: ${account.name} (${account.email})');
@@ -200,11 +202,17 @@ class AccountService {
     }
   }
 
-  /// Load the last used account
+  /// Load the last used account (or last sync account if current is not set)
   Future<bool> loadLastAccount() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final lastAccountId = prefs.getString(_currentAccountKey);
+
+      // Try current account first, then fall back to last sync account
+      var lastAccountId = prefs.getString(_currentAccountKey);
+      if (lastAccountId == null) {
+        lastAccountId = prefs.getString(_lastSyncAccountKey);
+        print('Using last sync account: $lastAccountId');
+      }
 
       if (lastAccountId == null) {
         print('No last account found');
@@ -266,5 +274,66 @@ class AccountService {
   Future<bool> hasAccounts() async {
     final accounts = await getAllAccounts();
     return accounts.isNotEmpty;
+  }
+
+  /// Get the last sync account ID without selecting it
+  /// This is used for background sync when the user is signed out
+  Future<String?> getLastSyncAccountId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Try current account first, then fall back to last sync account
+      var accountId = prefs.getString(_currentAccountKey);
+      if (accountId == null) {
+        accountId = prefs.getString(_lastSyncAccountKey);
+        print('AccountService: Using last sync account ID: $accountId');
+      } else {
+        print('AccountService: Using current account ID: $accountId');
+      }
+      return accountId;
+    } catch (e) {
+      print('AccountService: Error getting last sync account ID: $e');
+      return null;
+    }
+  }
+
+  /// Get an account by ID without selecting it
+  /// Returns null if account not found
+  Future<Account?> getAccountById(String accountId) async {
+    try {
+      final accounts = await getAllAccounts();
+      return accounts.firstWhere(
+        (acc) => acc.id == accountId,
+        orElse: () => throw Exception('Account not found'),
+      );
+    } catch (e) {
+      print('AccountService: Account not found: $accountId');
+      return null;
+    }
+  }
+
+  /// Restore account context for background sync without full sign-in
+  /// This sets _currentAccount temporarily for sync operations
+  Future<bool> restoreAccountForSync() async {
+    try {
+      final accountId = await getLastSyncAccountId();
+      if (accountId == null) {
+        print('AccountService: No account ID available for sync restoration');
+        return false;
+      }
+
+      final account = await getAccountById(accountId);
+      if (account == null) {
+        print('AccountService: Account not found for sync restoration');
+        return false;
+      }
+
+      // Set current account for sync (don't update SharedPreferences)
+      _currentAccount = account;
+      print('AccountService: Restored account for sync: ${account.name}');
+      return true;
+    } catch (e) {
+      print('AccountService: Error restoring account for sync: $e');
+      return false;
+    }
   }
 }

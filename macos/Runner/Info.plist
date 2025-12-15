@@ -32,5 +32,9 @@
 	<string>This app needs access to documents to import and export password vaults.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
 	<string>This app needs access to Downloads folder to export password vaults.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>xPass needs location access to detect your WiFi network name for trusted network sync.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>xPass needs location access to detect your WiFi network name for trusted network sync.</string>
 </dict>
 </plist>

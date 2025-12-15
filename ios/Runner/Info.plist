@@ -53,5 +53,15 @@
 	<true/>
 	<key>UIFileSharingEnabled</key>
 	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>xPass needs access to your local network to discover and sync with other devices running xPass.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_xpass._tcp</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>xPass needs camera access to scan QR codes for pairing with other devices.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>xPass needs photo library access to save or import QR codes for device pairing.</string>
 </dict>
 </plist>

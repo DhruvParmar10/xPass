@@ -4,11 +4,12 @@ import '../services/account_service.dart';
 import '../services/kdbx_service.dart';
 import 'account_management_screen.dart';
 import 'vault_screen.dart';
+import 'sync/sync_screens.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onThemeToggle;
   final ThemeMode currentThemeMode;
-  
+
   const HomeScreen({
     super.key,
     required this.onThemeToggle,
@@ -32,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _initializeApp() async {
     _kdbxService.closeDatabase();
     await _accountService.signOut();
-    if (mounted) setState(() {});
+    // No state changes needed here
   }
 
   Future<void> _navigateToAccountManagement() async {
@@ -80,6 +81,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    IconButton(
+                      icon: const Icon(Icons.sync),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SyncSettingsScreen(),
+                          ),
+                        );
+                      },
+                      variance: ButtonVariance.ghost,
+                    ),
                     IconButton(
                       icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
                       onPressed: widget.onThemeToggle,

@@ -1,0 +1,1 @@
+The issue is that macOS is returning <redacted> because Location Services permission is required to get the real WiFi SSID. This is a macOS privacy feature. Let me update the network monitor to request location permission and also filter out <redacted>:

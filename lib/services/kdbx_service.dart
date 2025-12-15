@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:csv/csv.dart';
 import 'account_service.dart';
+import 'secure_storage_service.dart';
 
 class KdbxService {
   static final KdbxService _instance = KdbxService._internal();
@@ -18,6 +19,10 @@ class KdbxService {
   String? _databasePath;
   static final KdbxFormat _format = KdbxFormat();
   final AccountService _accountService = AccountService();
+  final SecureStorageService _secureStorage = SecureStorageService();
+
+  /// Check if a vault is currently loaded/unlocked
+  bool get isVaultLoaded => _database != null;
 
   /// Get the appropriate directory for storing databases (account-specific)
   Future<Directory> _getStorageDirectory() async {
@@ -36,10 +41,11 @@ class KdbxService {
   }
 
   /// Get the default database path for the current account
-  Future<String> getDefaultDatabasePath() async {
+  Future<String?> getDefaultDatabasePath() async {
     final currentAccount = _accountService.currentAccount;
     if (currentAccount == null) {
-      throw Exception('No account selected');
+      print('Error: No account selected');
+      return null;
     }
 
     final directory = await _getStorageDirectory();
@@ -50,6 +56,7 @@ class KdbxService {
   Future<bool> hasDefaultDatabase() async {
     try {
       final defaultPath = await getDefaultDatabasePath();
+      if (defaultPath == null) return false;
       print('=== KDBX DEBUG: Checking for database at: $defaultPath ===');
       final file = File(defaultPath);
       final exists = await file.exists();
@@ -82,6 +89,10 @@ class KdbxService {
 
       // Get default database path
       final filePath = await getDefaultDatabasePath();
+      if (filePath == null) {
+        print('Error: Could not get database path');
+        return false;
+      }
       print('Default database will be stored at: $filePath');
 
       // Save the database to file
@@ -93,6 +104,13 @@ class KdbxService {
 
       // Save as last used database
       await _saveLastDatabasePath(filePath);
+
+      // Store the master password for background sync
+      await _secureStorage.storeMasterPassword(
+        currentAccount.id,
+        masterPassword,
+      );
+      print('Master password stored for background sync');
 
       print('Default database created and loaded successfully at: $filePath');
       return true;
@@ -106,6 +124,10 @@ class KdbxService {
   Future<bool> loadDefaultDatabase(String masterPassword) async {
     try {
       final defaultPath = await getDefaultDatabasePath();
+      if (defaultPath == null) {
+        print('Error: Could not get default database path');
+        return false;
+      }
       return await loadDatabase(defaultPath, masterPassword);
     } catch (e) {
       print('Error loading default database: $e');
@@ -205,6 +227,16 @@ class KdbxService {
       // Save as last used database
       await _saveLastDatabasePath(filePath);
 
+      // Store the master password for background sync
+      final currentAccount = _accountService.currentAccount;
+      if (currentAccount != null) {
+        await _secureStorage.storeMasterPassword(
+          currentAccount.id,
+          masterPassword,
+        );
+        print('Master password stored for background sync');
+      }
+
       return true;
     } catch (e) {
       print('Error loading database: $e');
@@ -213,37 +245,169 @@ class KdbxService {
   }
 
   /// Verify the master password for a specific account without loading the database
-  Future<bool> verifyMasterPassword(String accountId, String masterPassword) async {
+  Future<bool> verifyMasterPassword(
+    String accountId,
+    String masterPassword,
+  ) async {
     try {
       // Get the account directory
       final accountDir = await _accountService.getAccountDirectory(accountId);
-      
+
       // Look for any .kdbx files in the account directory
-      final kdbxFiles = await accountDir.list()
+      final kdbxFiles = await accountDir
+          .list()
           .where((entity) => entity is File && entity.path.endsWith('.kdbx'))
           .toList();
-      
+
       if (kdbxFiles.isEmpty) {
         print('No database found for account $accountId');
         return false;
       }
-      
+
       // Try to verify with the first database file found
       final file = File(kdbxFiles.first.path);
       final bytes = await file.readAsBytes();
       final credentials = Credentials(
         ProtectedValue.fromString(masterPassword),
       );
-      
+
       // This will throw an exception if the password is wrong
       await _format.read(bytes, credentials);
-      
+
       print('Master password verified successfully for account $accountId');
       return true;
     } catch (e) {
       print('Master password verification failed: $e');
       return false;
     }
+  }
+
+  /// Load the database for background sync using stored password
+  /// This doesn't require user interaction - uses securely stored password
+  /// Returns true if vault was loaded (either already loaded or successfully loaded now)
+  Future<bool> ensureVaultLoadedForSync() async {
+    print('=== ensureVaultLoadedForSync: Starting ===');
+
+    // If already loaded, we're good
+    if (_database != null) {
+      print('ensureVaultLoadedForSync: Vault already loaded');
+      return true;
+    }
+
+    // Try to get account for sync
+    var currentAccount = _accountService.currentAccount;
+    print(
+      'ensureVaultLoadedForSync: Current account = ${currentAccount?.name ?? "NULL"}',
+    );
+
+    if (currentAccount == null) {
+      print(
+        'ensureVaultLoadedForSync: No account selected, attempting restoration...',
+      );
+
+      // Use the new lightweight restoration method
+      final restored = await _accountService.restoreAccountForSync();
+      if (!restored) {
+        print('ensureVaultLoadedForSync: Failed to restore account for sync');
+
+        // Try the old method as fallback
+        print(
+          'ensureVaultLoadedForSync: Trying loadLastAccount as fallback...',
+        );
+        final fallbackRestored = await _accountService.loadLastAccount();
+        if (!fallbackRestored) {
+          print('ensureVaultLoadedForSync: All restoration methods failed');
+          return false;
+        }
+      }
+
+      currentAccount = _accountService.currentAccount;
+      if (currentAccount == null) {
+        print('ensureVaultLoadedForSync: Account still null after restoration');
+        return false;
+      }
+      print(
+        'ensureVaultLoadedForSync: Restored account: ${currentAccount.name} (ID: ${currentAccount.id})',
+      );
+    }
+
+    try {
+      // Get stored password
+      print(
+        'ensureVaultLoadedForSync: Getting stored password for account ${currentAccount.id}',
+      );
+      final storedPassword = await _secureStorage.getMasterPassword(
+        currentAccount.id,
+      );
+      if (storedPassword == null) {
+        print(
+          'ensureVaultLoadedForSync: No stored password for account ${currentAccount.id}',
+        );
+        return false;
+      }
+      print('ensureVaultLoadedForSync: Found stored password');
+
+      // Check if database exists
+      final hasDb = await hasDefaultDatabase();
+      if (!hasDb) {
+        print('ensureVaultLoadedForSync: No database file exists');
+        return false;
+      }
+
+      // Load the database
+      final defaultPath = await getDefaultDatabasePath();
+      if (defaultPath == null) {
+        throw Exception('Could not get default database path');
+      }
+      print('ensureVaultLoadedForSync: Loading vault from: $defaultPath');
+
+      final file = File(defaultPath);
+      final bytes = await file.readAsBytes();
+      final credentials = Credentials(
+        ProtectedValue.fromString(storedPassword),
+      );
+      final db = await _format.read(bytes, credentials);
+
+      _database = db;
+      _databasePath = defaultPath;
+
+      print('=== ensureVaultLoadedForSync: SUCCESS ===');
+      return true;
+    } catch (e) {
+      print('ensureVaultLoadedForSync: Failed to load vault: $e');
+      return false;
+    }
+  }
+
+  /// Check if we have a stored password that can be used for background sync
+  Future<bool> canLoadForBackgroundSync() async {
+    var currentAccount = _accountService.currentAccount;
+
+    // If no current account, try to get last sync account ID
+    if (currentAccount == null) {
+      final accountId = await _accountService.getLastSyncAccountId();
+      if (accountId == null) {
+        print('canLoadForBackgroundSync: No account available');
+        return false;
+      }
+
+      // Check if password exists for this account
+      final hasPassword = await _secureStorage.hasMasterPassword(accountId);
+      final hasDb = await hasDefaultDatabase();
+      print(
+        'canLoadForBackgroundSync: accountId=$accountId, hasPassword=$hasPassword, hasDb=$hasDb',
+      );
+      return hasPassword && hasDb;
+    }
+
+    final hasPassword = await _secureStorage.hasMasterPassword(
+      currentAccount.id,
+    );
+    final hasDb = await hasDefaultDatabase();
+    print(
+      'canLoadForBackgroundSync: accountId=${currentAccount.id}, hasPassword=$hasPassword, hasDb=$hasDb',
+    );
+    return hasPassword && hasDb;
   }
 
   /// Save the current database
@@ -578,17 +742,36 @@ class KdbxService {
 
   /// Generate a secure password
   String generatePassword({int length = 16, bool includeSymbols = true}) {
-    const chars =
-        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    if (length < 4) length = 4;
+
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const digits = '0123456789';
     const symbols = '!@#\$%^&*()_+-=[]{}|;:,.<>?';
 
-    final charset = includeSymbols ? chars + symbols : chars;
     final random = Random.secure();
+    final password = <String>[];
 
-    return List.generate(
-      length,
-      (index) => charset[random.nextInt(charset.length)],
-    ).join();
+    // Ensure at least one of each required type
+    password.add(lowercase[random.nextInt(lowercase.length)]);
+    password.add(uppercase[random.nextInt(uppercase.length)]);
+    password.add(digits[random.nextInt(digits.length)]);
+
+    if (includeSymbols && length > 3) {
+      password.add(symbols[random.nextInt(symbols.length)]);
+    }
+
+    // Fill remaining length
+    final charset =
+        lowercase + uppercase + digits + (includeSymbols ? symbols : '');
+    while (password.length < length) {
+      password.add(charset[random.nextInt(charset.length)]);
+    }
+
+    // Shuffle to avoid predictable patterns
+    password.shuffle(random);
+
+    return password.join();
   }
 
   /// Debug method to list all .kdbx files in storage directory
@@ -704,15 +887,24 @@ class KdbxService {
 
       // Create CSV content
       List<List<String>> csvData = [];
-      
+
       // Add header row
-      csvData.add(['Title', 'Username/Email', 'Password', 'URL', 'Tags', 'Notes']);
+      csvData.add([
+        'Title',
+        'Username/Email',
+        'Password',
+        'URL',
+        'Tags',
+        'Notes',
+      ]);
 
       // Add entry rows
       for (final entry in entries) {
         final title = entry.getString(KdbxKeyCommon.TITLE)?.getText() ?? '';
-        final username = entry.getString(KdbxKeyCommon.USER_NAME)?.getText() ?? '';
-        final password = entry.getString(KdbxKeyCommon.PASSWORD)?.getText() ?? '';
+        final username =
+            entry.getString(KdbxKeyCommon.USER_NAME)?.getText() ?? '';
+        final password =
+            entry.getString(KdbxKeyCommon.PASSWORD)?.getText() ?? '';
         final url = entry.getString(KdbxKeyCommon.URL)?.getText() ?? '';
         final tags = entry.getString(KdbxKey('Tags'))?.getText() ?? '';
         final notes = entry.getString(KdbxKey('Notes'))?.getText() ?? '';
@@ -729,18 +921,34 @@ class KdbxService {
         bool hasPermission = await _requestStoragePermission();
         if (hasPermission) {
           try {
-            exportDir = Directory('/storage/emulated/0/Documents');
-            if (!await exportDir.exists()) {
-              try {
-                await exportDir.create(recursive: true);
-              } catch (e) {
-                exportDir = Directory('/storage/emulated/0/Download');
-                if (!await exportDir.exists()) {
-                  exportDir = await getApplicationDocumentsDirectory();
+            // Try multiple storage locations for compatibility
+            final List<Directory?> possibleDirs = [
+              await getExternalStorageDirectory(), // App-specific external storage
+              Directory('/storage/emulated/0/Documents'),
+              Directory('/storage/emulated/0/Download'),
+            ];
+
+            Directory? validDir;
+            for (final dir in possibleDirs) {
+              if (dir != null) {
+                try {
+                  if (await dir.exists() ||
+                      await dir
+                          .create(recursive: true)
+                          .then((_) => true)
+                          .catchError((_) => false)) {
+                    validDir = dir;
+                    break;
+                  }
+                } catch (e) {
+                  continue;
                 }
               }
             }
+
+            exportDir = validDir ?? await getApplicationDocumentsDirectory();
           } catch (e) {
+            print('Error accessing Android storage: $e');
             exportDir = await getApplicationDocumentsDirectory();
           }
         } else {
@@ -1038,11 +1246,19 @@ class KdbxService {
           case 'username/email':
           case 'user':
           case 'login':
+          case 'email':
             return 'user_name';
-          case 'name':
+          case 'title':
           case 'site':
           case 'service':
+          case 'website_name':
             return 'title';
+          case 'name':
+            // Ambiguous: could be username OR site name - default to username with warning
+            print(
+              'WARNING: CSV column "name" is ambiguous. Treating as username. Consider using "title" for site name or "username" for login.',
+            );
+            return 'user_name';
           case 'pass':
           case 'pwd':
             return 'password';
@@ -1062,7 +1278,14 @@ class KdbxService {
       }).toList();
 
       // Validate expected columns
-      final expectedColumns = ['title', 'user_name', 'password', 'url', 'tags', 'notes'];
+      final expectedColumns = [
+        'title',
+        'user_name',
+        'password',
+        'url',
+        'tags',
+        'notes',
+      ];
       for (String column in expectedColumns) {
         if (!headers.contains(column)) {
           print('Warning: CSV missing expected column: $column');
@@ -1194,13 +1417,16 @@ class KdbxService {
 
         // Check if entry already exists (matching username/email, url, and password)
         final isDuplicate = existingEntries.any((entry) {
-          final existingUsername = entry.getString(KdbxKeyCommon.USER_NAME)?.getText() ?? '';
-          final existingUrl = entry.getString(KdbxKeyCommon.URL)?.getText() ?? '';
-          final existingPassword = entry.getString(KdbxKeyCommon.PASSWORD)?.getText() ?? '';
+          final existingUsername =
+              entry.getString(KdbxKeyCommon.USER_NAME)?.getText() ?? '';
+          final existingUrl =
+              entry.getString(KdbxKeyCommon.URL)?.getText() ?? '';
+          final existingPassword =
+              entry.getString(KdbxKeyCommon.PASSWORD)?.getText() ?? '';
 
           return existingUsername == csvUsername &&
-                 existingUrl == csvUrl &&
-                 existingPassword == csvPassword;
+              existingUrl == csvUrl &&
+              existingPassword == csvPassword;
         });
 
         if (isDuplicate) {
@@ -1247,15 +1473,18 @@ class KdbxService {
         // Set notes if provided
         final notes = csvEntry['notes']?.trim();
         if (notes != null && notes.isNotEmpty) {
-          newEntry.setString(KdbxKey('Notes'), ProtectedValue.fromString(notes));
+          newEntry.setString(
+            KdbxKey('Notes'),
+            ProtectedValue.fromString(notes),
+          );
         }
 
         currentGroup.addEntry(newEntry);
-        
+
         // Debug: Verify the entry was added with tags
         final verifyTags = newEntry.getString(KdbxKey('Tags'))?.getText() ?? '';
         print('DEBUG: Verified tags on newly added entry: "$verifyTags"');
-        
+
         importedCount++;
       }
 

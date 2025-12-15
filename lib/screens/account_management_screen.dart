@@ -15,6 +15,7 @@ import 'package:flutter/material.dart' as material show Colors;
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import '../services/account_service.dart';
 import '../services/kdbx_service.dart';
+import '../services/sync/sync_manager.dart';
 
 class AccountManagementScreen extends StatefulWidget {
   const AccountManagementScreen({super.key});
@@ -58,7 +59,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
       builder: (dialogContext) {
         final screenWidth = MediaQuery.of(dialogContext).size.width;
         final dialogWidth = screenWidth > 450 ? 400.0 : screenWidth * 0.85;
-        
+
         return StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
             title: const Text('Create New Account'),
@@ -71,183 +72,211 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                   children: [
                     const Icon(Icons.person_add, size: 40),
                     const SizedBox(height: 16),
-                FormField<String>(
-                  key: FormKey<String>('name_field'),
-                  label: const Text('Full Name'),
-                  child: TextField(
-                    controller: nameController,
-                    initialValue: '',
-                    onChanged: (v) {
-                      nameController.text = v;
-                      setDialogState(() => errorMessage = '');
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                FormField<String>(
-                  key: FormKey<String>('email_field'),
-                  label: const Text('Email Address'),
-                  child: TextField(
-                    controller: emailController,
-                    initialValue: '',
-                    onChanged: (v) {
-                      emailController.text = v;
-                      setDialogState(() => errorMessage = '');
-                    },
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                FormField<String>(
-                  key: FormKey<String>('password_field'),
-                  label: const Text('Master Password'),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: passwordController,
-                          initialValue: '',
-                          onChanged: (v) {
-                            passwordController.text = v;
-                            setDialogState(() => errorMessage = '');
-                          },
-                          obscureText: obscurePassword,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: Icon(
-                          obscurePassword
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                          size: 18,
-                        ),
-                        onPressed: () {
-                          setDialogState(() {
-                            obscurePassword = !obscurePassword;
-                          });
+                    FormField<String>(
+                      key: FormKey<String>('name_field'),
+                      label: const Text('Full Name'),
+                      child: TextField(
+                        controller: nameController,
+                        initialValue: '',
+                        onChanged: (v) {
+                          nameController.text = v;
+                          setDialogState(() => errorMessage = '');
                         },
-                        variance: ButtonVariance.ghost,
-                        density: ButtonDensity.compact,
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                FormField<String>(
-                  key: FormKey<String>('confirm_password_field'),
-                  label: const Text('Confirm Master Password'),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: confirmPasswordController,
-                          initialValue: '',
-                          onChanged: (v) {
-                            confirmPasswordController.text = v;
-                            setDialogState(() => errorMessage = '');
-                          },
-                          obscureText: obscureConfirmPassword,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: Icon(
-                          obscureConfirmPassword
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                          size: 18,
-                        ),
-                        onPressed: () {
-                          setDialogState(() {
-                            obscureConfirmPassword = !obscureConfirmPassword;
-                          });
-                        },
-                        variance: ButtonVariance.ghost,
-                        density: ButtonDensity.compact,
-                      ),
-                    ],
-                  ),
-                ),
-                if (errorMessage.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    errorMessage,
-                    style: const TextStyle(
-                      color: material.Colors.red,
-                      fontSize: 14,
                     ),
-                  ),
-                ],
-              ],
+                    const SizedBox(height: 16),
+                    FormField<String>(
+                      key: FormKey<String>('email_field'),
+                      label: const Text('Email Address'),
+                      child: TextField(
+                        controller: emailController,
+                        initialValue: '',
+                        onChanged: (v) {
+                          emailController.text = v;
+                          setDialogState(() => errorMessage = '');
+                        },
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FormField<String>(
+                      key: FormKey<String>('password_field'),
+                      label: const Text('Master Password'),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: passwordController,
+                              initialValue: '',
+                              onChanged: (v) {
+                                passwordController.text = v;
+                                setDialogState(() => errorMessage = '');
+                              },
+                              obscureText: obscurePassword,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: Icon(
+                              obscurePassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              size: 18,
+                            ),
+                            onPressed: () {
+                              setDialogState(() {
+                                obscurePassword = !obscurePassword;
+                              });
+                            },
+                            variance: ButtonVariance.ghost,
+                            density: ButtonDensity.compact,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    FormField<String>(
+                      key: FormKey<String>('confirm_password_field'),
+                      label: const Text('Confirm Master Password'),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: confirmPasswordController,
+                              initialValue: '',
+                              onChanged: (v) {
+                                confirmPasswordController.text = v;
+                                setDialogState(() => errorMessage = '');
+                              },
+                              obscureText: obscureConfirmPassword,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: Icon(
+                              obscureConfirmPassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              size: 18,
+                            ),
+                            onPressed: () {
+                              setDialogState(() {
+                                obscureConfirmPassword =
+                                    !obscureConfirmPassword;
+                              });
+                            },
+                            variance: ButtonVariance.ghost,
+                            density: ButtonDensity.compact,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (errorMessage.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        errorMessage,
+                        style: const TextStyle(
+                          color: material.Colors.red,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
+            actions: [
+              Flexible(
+                child: SecondaryButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: PrimaryButton(
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    final email = emailController.text.trim();
+                    final password = passwordController.text;
+                    final confirmPassword = confirmPasswordController.text;
+
+                    if (name.isEmpty ||
+                        email.isEmpty ||
+                        password.isEmpty ||
+                        confirmPassword.isEmpty) {
+                      setDialogState(
+                        () => errorMessage = 'All fields are required',
+                      );
+                      return;
+                    }
+
+                    if (password != confirmPassword) {
+                      setDialogState(
+                        () => errorMessage = 'Passwords do not match',
+                      );
+                      return;
+                    }
+
+                    if (password.length < 8) {
+                      setDialogState(
+                        () => errorMessage =
+                            'Password must be at least 8 characters',
+                      );
+                      return;
+                    }
+
+                    try {
+                      final account = await _accountService.createAccount(
+                        name: name,
+                        email: email,
+                      );
+                      if (account == null) {
+                        setDialogState(
+                          () => errorMessage =
+                              'Account with this email already exists',
+                        );
+                        return;
+                      }
+
+                      // Select the newly created account
+                      await _accountService.selectAccount(account.id);
+
+                      // Create the KDBX database with the master password
+                      final dbCreated = await _kdbxService
+                          .createDefaultDatabase(password);
+
+                      if (!dbCreated) {
+                        setDialogState(
+                          () =>
+                              errorMessage = 'Failed to create password vault',
+                        );
+                        return;
+                      }
+
+                      // Notify SyncManager that vault is unlocked
+                      SyncManager().onVaultUnlocked();
+
+                      if (dialogContext.mounted) {
+                        Navigator.of(dialogContext).pop();
+                        if (context.mounted) {
+                          Navigator.of(
+                            context,
+                          ).pop(true); // Return true to navigate to vault
+                        }
+                      }
+                    } catch (e) {
+                      setDialogState(
+                        () => errorMessage = 'Error creating account: $e',
+                      );
+                    }
+                  },
+                  child: const Text('Create', overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          Flexible(
-            child: SecondaryButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            child: PrimaryButton(
-              onPressed: () async {
-              final name = nameController.text.trim();
-              final email = emailController.text.trim();
-              final password = passwordController.text;
-              final confirmPassword = confirmPasswordController.text;
-
-              if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
-                setDialogState(() => errorMessage = 'All fields are required');
-                return;
-              }
-
-              if (password != confirmPassword) {
-                setDialogState(() => errorMessage = 'Passwords do not match');
-                return;
-              }
-
-              if (password.length < 8) {
-                setDialogState(() => errorMessage = 'Password must be at least 8 characters');
-                return;
-              }
-
-              try {
-                final account = await _accountService.createAccount(name: name, email: email);
-                if (account == null) {
-                  setDialogState(() => errorMessage = 'Account with this email already exists');
-                  return;
-                }
-
-                // Select the newly created account
-                await _accountService.selectAccount(account.id);
-
-                // Create the KDBX database with the master password
-                final dbCreated = await _kdbxService.createDefaultDatabase(password);
-                
-                if (!dbCreated) {
-                  setDialogState(() => errorMessage = 'Failed to create password vault');
-                  return;
-                }
-
-                if (dialogContext.mounted) {
-                  Navigator.of(dialogContext).pop();
-                  if (context.mounted) {
-                    Navigator.of(context).pop(true); // Return true to navigate to vault
-                  }
-                }
-              } catch (e) {
-                setDialogState(() => errorMessage = 'Error creating account: $e');
-              }
-            },
-            child: const Text('Create', overflow: TextOverflow.ellipsis),
-          ),
-          ),
-        ],
-      ),
-      );
+        );
       },
     );
   }
@@ -307,7 +336,9 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                       const SizedBox(width: 8),
                       IconButton(
                         icon: Icon(
-                          obscurePassword ? Icons.visibility : Icons.visibility_off,
+                          obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                           size: 18,
                         ),
                         onPressed: () {
@@ -347,9 +378,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                 if (isVerifying)
                   const Padding(
                     padding: EdgeInsets.only(top: 16),
-                    child: Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    child: Center(child: CircularProgressIndicator()),
                   ),
               ],
             ),
@@ -387,13 +416,19 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
 
                       if (isValid) {
                         // Password is correct, select the account
-                        final success = await _accountService.selectAccount(account.id);
-                        
+                        final success = await _accountService.selectAccount(
+                          account.id,
+                        );
+
                         if (success) {
                           // Load the database with the verified password
-                          final dbLoaded = await _kdbxService.loadDefaultDatabase(password);
-                          
+                          final dbLoaded = await _kdbxService
+                              .loadDefaultDatabase(password);
+
                           if (dbLoaded && dialogContext.mounted) {
+                            // Notify SyncManager that vault is unlocked
+                            SyncManager().onVaultUnlocked();
+
                             Navigator.of(dialogContext).pop();
                             if (mounted) {
                               Navigator.pop(context, true);
@@ -481,7 +516,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
 
   Widget _buildAccountList() {
     final theme = Theme.of(context);
-    
+
     if (accounts.isEmpty) {
       return Center(
         child: SingleChildScrollView(
@@ -536,7 +571,9 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                     const SizedBox(height: 4),
                     Text(
                       'Accounts',
-                      style: TextStyle(color: theme.colorScheme.mutedForeground),
+                      style: TextStyle(
+                        color: theme.colorScheme.mutedForeground,
+                      ),
                     ),
                   ],
                 ),
@@ -555,49 +592,6 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
             ],
           ),
         ),
-        if (_accountService.currentAccount != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Card(
-              child: InkWell(
-                onTap: null,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const CircleAvatar(radius: 24, child: Icon(Icons.person)),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Current Account',
-                              style: TextStyle(fontSize: 12),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _accountService.currentAccount!.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              _accountService.currentAccount!.email,
-                              style: TextStyle(
-                                color: theme.colorScheme.mutedForeground,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SecondaryBadge(child: Icon(Icons.check, size: 16)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -610,19 +604,29 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Card(
+                  borderColor: isCurrentAccount
+                      ? theme.colorScheme.primary
+                      : null,
+                  borderWidth: isCurrentAccount ? 2 : 1,
                   child: InkWell(
-                    onTap: isCurrentAccount
-                        ? null
-                        : () => _selectAccount(account),
+                    onTap: () => _selectAccount(account),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
                           CircleAvatar(
                             radius: 28,
+                            backgroundColor: isCurrentAccount
+                                ? theme.colorScheme.primary
+                                : null,
                             child: Text(
                               account.name.substring(0, 1).toUpperCase(),
-                              style: const TextStyle(fontSize: 20),
+                              style: TextStyle(
+                                fontSize: 20,
+                                color: isCurrentAccount
+                                    ? theme.colorScheme.primaryForeground
+                                    : null,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -641,9 +645,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                                       ),
                                     ),
                                     if (isCurrentAccount)
-                                      const SecondaryBadge(
-                                        child: Text('ACTIVE'),
-                                      ),
+                                      const PrimaryBadge(child: Text('ACTIVE')),
                                   ],
                                 ),
                                 const SizedBox(height: 4),
@@ -670,30 +672,73 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                                     ),
                                   ],
                                 ),
+                                if (isCurrentAccount) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Tap to open vault',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert),
-                            onSelected: (value) {
-                              switch (value) {
-                                case 'select':
-                                  _selectAccount(account);
-                                  break;
-                                case 'delete':
-                                  _deleteAccount(account);
-                                  break;
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              if (!isCurrentAccount)
-                                const PopupMenuItem(
-                                  value: 'select',
-                                  child: Text('Select Account'),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isCurrentAccount)
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_forward),
+                                  onPressed: () => _selectAccount(account),
+                                  variance: ButtonVariance.primary,
+                                  density: ButtonDensity.compact,
                                 ),
-                              const PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Delete Account'),
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert),
+                                onSelected: (value) {
+                                  switch (value) {
+                                    case 'open':
+                                      _selectAccount(account);
+                                      break;
+                                    case 'delete':
+                                      _deleteAccount(account);
+                                      break;
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  PopupMenuItem(
+                                    value: 'open',
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          isCurrentAccount
+                                              ? Icons.lock_open
+                                              : Icons.login,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          isCurrentAccount
+                                              ? 'Open Vault'
+                                              : 'Switch Account',
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.delete, size: 18),
+                                        SizedBox(width: 8),
+                                        Text('Delete Account'),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
