@@ -4,12 +4,10 @@
 [![Flutter](https://img.shields.io/badge/Flutter-3.9.2+-02569B.svg?logo=flutter)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.9.2+-0175C2.svg?logo=dart)](https://dart.dev)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
-[![Documentation](https://img.shields.io/badge/docs-available-brightgreen.svg)](docs/)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/DhruvParmar10/xPass/actions)
 [![Security](https://img.shields.io/badge/security-KDBX%20AES--256-red.svg)](https://keepass.info/help/base/security.html)
 [![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20Android%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](https://flutter.dev/multi-platform)
 
-A cross-platform password manager engineered with Flutter that implements industry-standard encryption protocols using the KDBX format. Architected for enterprise security requirements with comprehensive multi-tenant support, automated data import workflows, cryptographically secure password generation algorithms, and intelligent peer-to-peer synchronization across trusted networks.
+A cross-platform password manager engineered with Flutter that implements industry-standard encryption protocols using the KDBX format. Architected for enterprise security requirements with comprehensive multi-tenant support, automated data import workflows, secure password generation capabilities, and intelligent peer-to-peer synchronization across trusted networks.
 
 ## Screenshots
 
@@ -30,7 +28,8 @@ The application demonstrates sophisticated Flutter development patterns and secu
 - **Secure Device Pairing Protocol**: One-time QR code authentication system with cryptographic device fingerprinting using [uuid](https://pub.dev/packages/uuid) and [device_info_plus](https://pub.dev/packages/device_info_plus), eliminating manual configuration while maintaining security boundaries
 - **Asynchronous State Management**: Leverages Flutter's reactive architecture with proper async/await patterns, Future-based operations, and comprehensive error propagation
 - **Cross-Platform File System Abstraction**: Implements unified file operations across platforms using [path_provider](https://pub.dev/packages/path_provider) with secure local persistence strategies
-- **Enterprise Data Migration**: Production-grade CSV import engine with intelligent header mapping, data validation, and transactional import operations via [csv](https://pub.dev/packages/csv)
+- **Enterprise Data Migration**: Production-grade CSV import and export engine with intelligent header mapping, data validation, and transactional operations via [csv](https://pub.dev/packages/csv)
+- **Secure Password Generation**: Built-in cryptographically secure password generator with configurable length and character sets
 - **Security-First Permission Model**: Runtime permission orchestration using [permission_handler](https://pub.dev/packages/permission_handler) with granular Android storage access controls
 - **Cryptographic Utilities**: Extends security capabilities through Dart's [crypto](https://pub.dev/packages/crypto) library for additional hash operations and secure random generation
 - **Universal File Access**: Cross-platform file selection interface via [file_picker](https://pub.dev/packages/file_picker) with MIME type validation and security filtering
