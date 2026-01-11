@@ -128,6 +128,25 @@ The application follows clean architecture principles with strict separation of 
   <p><em>Seamless QR code-based device pairing and intelligent sync management across trusted networks</em></p>
 </div>
 
+## Roadmap
+
+We're continuously working to enhance xPass with new features and improvements. Here's what's coming next:
+
+### In Active Development
+
+- **Advanced Password Generator UI** - Enhanced user interface with customizable options including length, character sets, special symbols, and strength indicators
+
+### Planned Features
+
+- **Browser Extension** - Native browser integration for Chrome, Firefox, Safari, and Edge with auto-fill capabilities and secure communication with the desktop application
+- **Biometric Authentication** - Fingerprint and Face ID support for quick vault access
+- **Password Health Dashboard** - Analyze password strength, identify reused passwords, and detect compromised credentials
+- **Secure Notes & Attachments** - Store sensitive documents, images, and encrypted notes alongside passwords
+- **Two-Factor Authentication (2FA)** - Built-in TOTP generator for managing 2FA codes
+- **Password History** - Track and restore previous password versions with rollback capabilities
+
+Have a feature request? Open an issue on [GitHub](https://github.com/DhruvParmar10/xPass/issues) to share your ideas!
+
 ## Contributing
 
 We welcome contributions from the community! xPass is an open-source project and we appreciate your help in making it better.
